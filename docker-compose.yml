@@ -1,0 +1,71 @@
+# ============================================================
+# BioHazard CTF Lab — 一键启动
+#   用法: docker compose up -d --build
+#   靶机: http://localhost:80
+#   提示: 所有服务仅 web 暴露到宿主机, backup/mysql/dc 均在内网
+#         网段 172.20.0.0/24 (SSRF / 内网渗透的目标)
+# ============================================================
+services:
+  web:
+    build: ./web
+    container_name: biohazard-web
+    ports:
+      - "80:80"
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_USER: corp_app
+      MYSQL_PASS: CorpApp@2026
+      MYSQL_DB: corp
+      INTERNAL_SUBNET: 172.20.0.0/24
+    networks:
+      internal:
+        ipv4_address: 172.20.0.10
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  mysql:
+    image: mysql:8.0
+    container_name: biohazard-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: Root@2026
+      MYSQL_DATABASE: corp
+      MYSQL_USER: corp_app
+      MYSQL_PASSWORD: CorpApp@2026
+    volumes:
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - mysql_data:/var/lib/mysql
+    networks:
+      internal:
+        ipv4_address: 172.20.0.20
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-pRoot@2026"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  backup:
+    build: ./backup
+    container_name: biohazard-backup
+    networks:
+      internal:
+        ipv4_address: 172.20.0.30
+    # 仅内网: 不映射端口到宿主机
+
+  dc:
+    build: ./dc
+    container_name: biohazard-dc
+    networks:
+      internal:
+        ipv4_address: 172.20.0.40
+    # 仅内网: 不映射端口到宿主机
+
+volumes:
+  mysql_data:
+
+networks:
+  internal:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
