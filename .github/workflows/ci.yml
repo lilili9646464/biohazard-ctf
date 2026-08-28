@@ -21,34 +21,23 @@ jobs:
 
       - name: 安装依赖
         run: |
-          pip install flask==3.0.3 requests==2.32.3 lxml pytest
-          pip install pymysql
-
-      - name: 初始化 flag 文件
-        run: |
-          mkdir -p web/uploads web/data
-          echo "flag{Unr3str1ct3d_Upl04d}" > web/uploads/flag5_upload.txt
-          echo "flag{Xx3_1s_D4ng3r0us}" > web/flag6_xxe.txt
-          echo "flag{Tr4v3rs4l_K1ll5_T4rget}" > web/flag8_traversal.txt
-          echo "flag{Jwt_S3cr3t_T00_W34k}" > web/flag7_jwt.txt
-          echo "normal file" > web/data/note.txt
+          pip install flask==3.0.3 requests==2.32.3 lxml pymysql
 
       - name: 运行全链路攻击测试
         run: python3 scripts/test_all.py
 
-      - name: 校验启动
+      - name: 校验应用启动与教学面板
         run: |
-          timeout 10 python3 -c "
-import sys
-sys.path.insert(0, 'web')
-import app
-app.db_init()
-client = app.APP.test_client()
-r = client.get('/debug_info')
-assert r.status_code == 200, 'debug_info 失败'
-assert b'flag1' in r.data, '缺少flag1'
-print('✅ 应用启动 + 首页/调试接口正常')
-r = client.get('/lab')
-assert b'BIOHAZARD' in r.data.upper()
-print('✅ 教学面板 /lab 正常')
-"
+          python3 - <<'PY'
+          import sys
+          sys.path.insert(0, 'web')
+          import app
+          app.db_init()
+          client = app.APP.test_client()
+          r = client.get('/debug_info')
+          assert r.status_code == 200, 'debug_info 失败'
+          assert b'flag1' in r.data, '缺少flag1'
+          r = client.get('/lab')
+          assert b'BIOHAZARD' in r.data.upper(), '教学面板 /lab 异常'
+          print('OK: 应用启动 + debug_info + /lab 教学面板 正常')
+          PY
