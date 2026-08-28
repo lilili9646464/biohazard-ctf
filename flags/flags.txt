@@ -1,7 +1,11 @@
-# BioHazard CTF Lab — Flag 一览表
+# BioHazard CTF Lab v2 — Flag 一览表
 # 通关后按顺序收集 (仅供参考, 别偷看!!)
 
-flag#1  flag{0pen_D3bug_1s_D4ng3r0us}      -> /debug_info (信息收集)
-flag#2  flag{C0ngr4ts_Y0u_R34d_DB}        -> /admin 后台 (SQL注入绕过登录)
-flag#3  flag{B4ckup_0f_Th3_Und3ad}        -> 内网 backup 服务 (SSRF)
-flag#4  flag{D0m41n_C0ntr0ll3r_0wn3d}     -> 域控 dc 服务 (横向移动)
+flag#1  flag{0pen_D3bug_1s_D4ng3r0us}        -> /debug_info (信息收集)
+flag#2  flag{C0ngr4ts_Y0u_R34d_DB}          -> /admin 后台 (SQL注入绕过登录)
+flag#3  flag{B4ckup_0f_Th3_Und3ad}          -> 内网 backup 服务 (SSRF)
+flag#4  flag{D0m41n_C0ntr0ll3r_0wn3d}       -> 域控 dc 服务 (横向移动)
+flag#5  flag{Unr3str1ct3d_Upl04d}           -> /uploads/flag5_upload.txt (任意文件上传)
+flag#6  flag{Xx3_1s_D4ng3r0us}              -> /api/parse_xml (XXE)
+flag#7  flag{Jwt_S3cr3t_T00_W34k}           -> /api/jwt/data (JWT弱密钥伪造)
+flag#8  flag{Tr4v3rs4l_K1ll5_T4rget}        -> /api/download (目录穿越)

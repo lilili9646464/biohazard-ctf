@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎯 BioHazard CTF 攻防教学面板</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  :root { --bg:#0a0f0a; --panel:#111a11; --line:#1f3a22; --grn:#33ff66; --dim:#5f8f6a; --yel:#ffd166; --red:#ff5555; --cyn:#4dd2ff; }
+  body { background:var(--bg); color:#d8f5de; font-family:"SF Mono","Cascadia Code",Consolas,Menlo,monospace; min-height:100vh; }
+  header { display:flex; justify-content:space-between; align-items:center; padding:14px 22px; background:var(--panel); border-bottom:1px solid var(--line); position:sticky; top:0; z-index:20; }
+  header h1 { font-size:17px; color:var(--grn); text-shadow:0 0 8px rgba(51,255,102,.5); }
+  header .hud { font-size:12px; color:var(--dim); display:flex; gap:14px; align-items:center; }
+  .progress-wrap { min-width:170px; }
+  .bar { height:8px; background:#0c150c; border:1px solid var(--line); border-radius:4px; overflow:hidden; margin-top:3px; }
+  .bar-fill { height:100%; width:0%; background:linear-gradient(90deg,#19b84c,var(--grn)); transition:width .6s; box-shadow:0 0 8px var(--grn); }
+  .wrap { max-width:1180px; margin:0 auto; padding:20px; }
+  section { margin-bottom:26px; }
+  .sec-title { font-size:13px; color:var(--cyn); letter-spacing:2px; margin-bottom:10px; border-left:3px solid var(--cyn); padding-left:10px; }
+  /* SVG */
+  #graph { background:var(--panel); border:1px solid var(--line); border-radius:10px; width:100%; }
+  .node { cursor:pointer; }
+  .node circle { transition:all .3s; }
+  .node.solved circle { fill:#0f3a1a; stroke:var(--grn); }
+  .node circle { fill:#0c150c; stroke:#2f5a35; stroke-width:1.5; }
+  .node:hover circle { stroke:var(--cyn); filter:drop-shadow(0 0 6px var(--cyn)); }
+  .node text.nm { fill:#b7e8c4; font-size:12px; }
+  .node text.tech { fill:var(--dim); font-size:9.5px; }
+  .node text.fl { fill:var(--yel); font-size:9.5px; }
+  .edge { stroke:#234d2b; stroke-width:1.6; fill:none; }
+  .edge.flow { stroke:var(--grn); stroke-dasharray:5 4; }
+  .edge-arrow { fill:var(--grn); }
+  /* cards */
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:12px 14px; cursor:pointer; transition:all .2s; }
+  .card:hover { border-color:var(--grn); transform:translateY(-2px); box-shadow:0 4px 16px rgba(51,255,102,.12); }
+  .card.solved { border-color:#2f5a35; background:#0d1a0e; }
+  .card.solved .st-num { background:var(--grn); color:#04130a; }
+  .st-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  .st-num { background:#1c301f; color:var(--grn); font-size:11px; border-radius:5px; padding:2px 7px; font-weight:bold; }
+  .st-flag { color:var(--yel); font-size:11px; }
+  .card h3 { font-size:14px; margin-bottom:4px; }
+  .card .tech { color:var(--cyn); font-size:11px; margin-bottom:8px; }
+  .card .desc { color:var(--dim); font-size:11px; margin-bottom:10px; min-height:32px; }
+  .card code { display:block; background:#0a120a; border:1px solid var(--line); border-radius:6px; padding:6px 8px; font-size:10px; color:#9fe8b4; overflow-x:auto; white-space:nowrap; }
+  /* modal */
+  #modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:50; align-items:center; justify-content:center; }
+  #modal.open { display:flex; }
+  .modal-box { background:var(--panel); border:1px solid var(--grn); border-radius:12px; max-width:620px; width:92%; max-height:80vh; overflow:auto; padding:20px; box-shadow:0 0 40px rgba(51,255,102,.15); }
+  .modal-box h2 { color:var(--grn); margin-bottom:10px; }
+  .modal-box .tech { color:var(--cyn); margin-bottom:8px; font-size:13px; }
+  .modal-box .desc { color:#cfe9d6; margin-bottom:12px; line-height:1.6; }
+  .modal-box pre { background:#0a120a; border:1px solid var(--line); border-radius:8px; padding:12px; font-size:12px; overflow-x:auto; color:#9fe8b4; white-space:pre-wrap; word-break:break-all; }
+  .btn { background:var(--grn); color:#04130a; border:none; border-radius:8px; padding:9px 16px; font-weight:bold; cursor:pointer; font-family:inherit; margin-top:12px; }
+  .btn.ghost { background:transparent; color:var(--grn); border:1px solid var(--grn); }
+  .close { float:right; cursor:pointer; color:var(--dim); font-size:20px; }
+  #toast { position:fixed; bottom:26px; left:50%; transform:translateX(-50%); background:var(--panel); border:1px solid var(--grn); color:var(--grn); padding:10px 18px; border-radius:8px; font-size:13px; display:none; z-index:60; }
+  .legend { display:flex; gap:18px; color:var(--dim); font-size:11px; margin-top:8px; align-items:center; }
+  .legend .dot { width:9px; height:9px; border-radius:50%; display:inline-block; margin-right:4px; }
+  footer { text-align:center; color:var(--dim); font-size:11px; padding:26px 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>☣ BIOHAZARD CTF — 攻防教学面板</h1>
+  <div class="hud">
+    <span id="clock">--:--:--</span>
+    <div class="progress-wrap">
+      <div style="display:flex;justify-content:space-between;font-size:11px;">
+        <span>🏁 收集进度</span><span id="prog-txt">0/0</span>
+      </div>
+      <div class="bar"><div class="bar-fill" id="bar"></div></div>
+    </div>
+  </div>
+</header>
+<div class="wrap">
+  <section>
+    <div class="sec-title">◈ 攻击链图谱 (ATTACK CHAIN)</div>
+    <svg id="graph" viewBox="0 0 1150 260"></svg>
+    <div class="legend">
+      <span><span class="dot" style="background:#2f5a35"></span> 未完成</span>
+      <span><span class="dot" style="background:#33ff66"></span> 已攻破</span>
+      <span>💡 点击节点查看该关卡玩法</span>
+    </div>
+  </section>
+  <section>
+    <div class="sec-title">◈ 关卡列表 (11 STAGES)</div>
+    <div class="grid" id="cards"></div>
+  </section>
+  <footer>BioHazard CTF Lab v2 · 仅供本地靶场学习 · 未授权渗透真实系统属违法行为</footer>
+</div>
+<div id="modal"><div class="modal-box"><span class="close" onclick="closeModal()">✕</span><div id="modal-body"></div></div></div>
+<div id="toast"></div>
+<script>
+// ============ 攻击链节点坐标 (11关, 3行曲线布局) ============
+const NODE_POS = {
+  s1:{x:80,y:48}, s2:{x:185,y:48}, s3:{x:290,y:48}, s4:{x:410,y:90},
+  s8:{x:515,y:48}, s9:{x:620,y:90}, s10:{x:725,y:48}, s11:{x:830,y:90},
+  s5:{x:935,y:48}, s6:{x:960,y:160}, s7:{x:1080,y:170}
+};
+const EDGES = [["s1","s2"],["s2","s3"],["s3","s4"],["s4","s8"],["s8","s9"],
+  ["s9","s10"],["s10","s11"],["s11","s5"],["s5","s6"],["s6","s7"]];
+
+let META = [];
+let PROG = {};
+
+async function fetchJson(url) {
+  const r = await fetch(url);
+  return r.json();
+}
+
+function renderGraph() {
+  const svg = document.getElementById('graph');
+  let s = '';
+  for (const [a,b] of EDGES) {
+    const p1 = NODE_POS[a], p2 = NODE_POS[b];
+    const mid = ((p1.x+p2.x)/2), my = ((p1.y+p2.y)/2);
+    s += `<path class="edge" d="M${p1.x},${p1.y} Q${mid},${my+28} ${p2.x},${p2.y}" id="e-${a}-${b}"/>`;
+  }
+  for (const m of META) {
+    const p = NODE_POS[m.id] || {x:0,y:0};
+    const solved = PROG[m.id] ? true : false;
+    const fl = solved && m.flag.startsWith('flag') ? ' 🏁' : (m.flag.startsWith('flag') ? ' 🚩' : '');
+    s += `<g class="node ${solved?'solved':''}" id="n-${m.id}" onclick="openStage('${m.id}')">
+      <circle cx="${p.x}" cy="${p.y}" r="17"/>
+      <text x="${p.x-14}" y="${p.y-22}" class="nm">S${m.num}</text>
+      <text x="${p.x+22}" y="${p.y-4}" class="tech">${m.name}</text>
+      <text x="${p.x+22}" y="${p.y+11}" class="fl">${m.flag}${fl}</text>
+    </g>`;
+  }
+  svg.innerHTML = s;
+  // 高亮已攻破路径
+  for (const [a,b] of EDGES) {
+    if (PROG[a] && PROG[b]) {
+      const e = document.getElementById(`e-${a}-${b}`);
+      if (e) { e.classList.add('flow'); const l = e.getTotalLength();
+        e.style.strokeDasharray = l; e.style.strokeDashoffset = l;
+        e.getBoundingClientRect();
+        e.style.transition = 'stroke-dashoffset 1.2s ease';
+        e.style.strokeDashoffset = 0;
+      }
+    }
+  }
+}
+
+function renderCards() {
+  const grid = document.getElementById('cards');
+  grid.innerHTML = META.map(m => {
+    const solved = PROG[m.id] ? true : false;
+    const fl = m.flag.startsWith('flag') ? (solved ? '✅ 已攻破' : m.flag) : '辅助';
+    return `<div class="card ${solved?'solved':''}" onclick="openStage('${m.id}')">
+      <div class="st-top"><span class="st-num">STAGE ${m.num}</span><span class="st-flag">${fl}</span></div>
+      <h3>${m.name}</h3>
+      <div class="tech">${m.tech}</div>
+      <div class="desc">${m.desc}</div>
+      <code>${m.cmd}</code>
+    </div>`;
+  }).join('');
+}
+
+function openStage(id) {
+  const m = META.find(x => x.id === id);
+  const solved = PROG[id] ? true : false;
+  document.getElementById('modal-body').innerHTML = `
+    <span class="close" onclick="closeModal()">✕</span>
+    <h2>STAGE ${m.num} · ${m.name} ${solved?'✅':''}</h2>
+    <div class="tech">漏洞类型: ${m.tech}</div>
+    <div class="desc">${m.desc}</div>
+    <div class="desc">🏁 目标 flag: <b style="color:var(--yel)">${m.flag}</b></div>
+    <div class="desc">📖 思路: ${m.hint || '点击右侧命令复制, 在终端中执行'}</div>
+    <pre id="cmd-text">${m.cmd}</pre>
+    <button class="btn" onclick="copyCmd('${id}')">📋 复制攻击命令</button>
+    <button class="btn ghost" onclick="closeModal()">关闭</button>`;
+  document.getElementById('modal').classList.add('open');
+}
+
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+
+async function copyCmd(id) {
+  const m = META.find(x => x.id === id);
+  try { await navigator.clipboard.writeText(m.cmd); toast('✅ 命令已复制'); }
+  catch { toast('复制失败, 请手动选择'); }
+}
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 1800);
+}
+
+function updateHud() {
+  const total = META.filter(m => m.flag.startsWith('flag')).length;
+  const done = META.filter(m => m.flag.startsWith('flag') && PROG[m.id]).length;
+  document.getElementById('prog-txt').textContent = `${done}/${total}`;
+  document.getElementById('bar').style.width = (total ? done/total*100 : 0) + '%';
+}
+
+function tick() { document.getElementById('clock').textContent = new Date().toLocaleTimeString('zh-CN'); }
+
+async function refresh() {
+  try {
+    const [meta, prog] = await Promise.all([fetchJson('/api/lab_meta'), fetchJson('/api/progress')]);
+    META = meta.stages;
+    PROG = prog.progress || {};
+    renderGraph(); renderCards(); updateHud();
+  } catch (e) { /* 服务未就绪 */ }
+}
+
+setInterval(refresh, 2500);  // 每2.5秒自动刷新进度
+setInterval(tick, 1000);
+refresh(); tick();
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+</script>
+</body>
+</html>

